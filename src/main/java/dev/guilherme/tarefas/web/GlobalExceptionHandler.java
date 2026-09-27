@@ -3,6 +3,7 @@ package dev.guilherme.tarefas.web;
 import dev.guilherme.tarefas.exception.RecursoNaoEncontradoException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -17,6 +18,15 @@ public class GlobalExceptionHandler {
     public ProblemDetail tratarNaoEncontrado(RecursoNaoEncontradoException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("Recurso não encontrado");
+        return problem;
+    }
+
+    /** ?sort= com campo que não existe na entidade: erro do cliente, não 500. */
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ProblemDetail tratarOrdenacaoInvalida(PropertyReferenceException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Campo de ordenação inválido: " + ex.getPropertyName());
+        problem.setTitle("Parâmetro inválido");
         return problem;
     }
 
