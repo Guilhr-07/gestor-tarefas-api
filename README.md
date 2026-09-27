@@ -1,115 +1,118 @@
-# Gestor de Tarefas — API REST (Spring Boot)
+# Gestor de Tarefas API
 
-API REST para gestão de tarefas, construída como o **projeto marco do Mês 2** da trilha
-de backend (Java avançado, POO, Spring Boot, APIs REST). Foco em código limpo,
-validação, tratamento de erros padronizado e testes automatizados — mentalidade de
-produção, não tutorial.
+API REST para criar, listar, concluir e apagar tarefas, com filtro por status e paginação. Feita em Java 21 e Spring Boot 4.1.
 
-![build](https://img.shields.io/badge/tests-5%20passing-brightgreen) ![java](https://img.shields.io/badge/java-21-orange) ![spring](https://img.shields.io/badge/spring--boot-4.1-green)
+## Por que existe
 
-## Stack
+É o primeiro dos três projetos da minha trilha de backend (Mês 2). O domínio é pequeno de propósito: uma entidade, dois enums. Assim sobra atenção para o que costuma ficar mal feito em projeto de estudo: contrato HTTP certo (201 com `Location`, 204, 404), erro em formato padrão, validação no servidor, teste de integração e schema versionado.
 
-- **Java 21** + **Spring Boot 4.1**
-- Spring Web MVC (REST) · Spring Data JPA · Bean Validation (Jakarta)
-- **H2** em memória por padrão · **PostgreSQL** por variável de ambiente
-- Spring Boot Actuator (health/info)
-- **JUnit 5** + MockMvc (testes de integração da API)
+## Como funciona
 
-## Como rodar
+1. O cliente cria uma tarefa com `POST /api/tarefas`. Ela nasce `PENDENTE`, e com prioridade `MEDIA` se nada for informado.
+2. Lista com `GET /api/tarefas?status=PENDENTE&page=0&size=20&sort=prazo,asc`.
+3. Conclui com `PATCH /api/tarefas/{id}/concluir`. Concluir de novo não muda nada.
+4. Qualquer erro volta como `ProblemDetail` (RFC 9457): 400 com o mapa `erros` campo por campo, 404 com a mensagem.
 
-```bash
-./mvnw spring-boot:run
-# a API sobe em http://localhost:8080
+## Arquitetura
+
+```
+cliente HTTP -> web (controller, handler de erro) -> service (@Transactional) -> repository (Spring Data JPA) -> H2 ou PostgreSQL
 ```
 
-Sem instalar Maven — o wrapper (`./mvnw`) baixa tudo. Requer apenas JDK 21+.
+- `web/`: rotas e conversão de exceção em resposta. Não tem regra de negócio.
+- `service/`: fronteira de transação e o "não encontrado" num lugar só (`buscarEntidade`).
+- `domain/`: a entidade `Tarefa` guarda a regra (`concluir()`, `atualizar()`) e preenche `criadaEm`/`atualizadaEm` por callback JPA.
+- `dto/`: records de entrada (validados) e de saída. A entidade nunca sai direto na resposta.
 
-Rodar os testes:
+## Decisões técnicas
+
+| Decisão | Por quê |
+| --- | --- |
+| Enum gravado como texto (`EnumType.STRING`) e com `CHECK` no banco | Reordenar o enum não corrompe dado antigo, e o banco recusa valor fora da lista |
+| H2 em dev, PostgreSQL por variável de ambiente | `./mvnw spring-boot:run` funciona sem instalar nada; o mesmo jar roda no Postgres |
+| Flyway só no perfil `postgres`, com `ddl-auto=validate` | Em banco de verdade o schema tem histórico; no H2 de dev o Hibernate cria as tabelas |
+| `saveAndFlush` no PUT e no PATCH | O `@PreUpdate` só roda no flush; sem ele a resposta saía com o `atualizadaEm` antigo |
+| `?sort=` com campo inexistente vira 400 | Antes estourava `PropertyReferenceException` e devolvia 500 |
+
+## Rodando localmente
+
+Pré-requisito: JDK 21 ou mais novo. Não precisa instalar Maven, o `mvnw` baixa.
 
 ```bash
-./mvnw test
+./mvnw spring-boot:run          # Windows: .\mvnw.cmd spring-boot:run
 ```
+
+Sobe em `http://localhost:8080` com H2 em memória e 3 tarefas de exemplo (`data.sql`).
+
+```bash
+curl -i -X POST http://localhost:8080/api/tarefas \
+  -H "Content-Type: application/json" \
+  -d '{"titulo":"Estudar JPA","prioridade":"ALTA","prazo":"2026-10-10"}'
+# HTTP/1.1 201, Location: http://localhost:8080/api/tarefas/4
+```
+
+Com PostgreSQL (API e banco no Docker, perfil `postgres`, schema criado pelo Flyway):
+
+```bash
+docker compose up --build
+```
+
+O arquivo [`api.http`](api.http) tem as requisições prontas para VS Code ou IntelliJ.
 
 ## Endpoints
 
-| Método | Rota | Descrição | Status |
-|--------|------|-----------|--------|
-| `POST` | `/api/tarefas` | Cria uma tarefa | `201 Created` + `Location` |
-| `GET` | `/api/tarefas` | Lista paginada (`?status=`, `?page=`, `?size=`, `?sort=`) | `200` |
-| `GET` | `/api/tarefas/{id}` | Busca por id | `200` / `404` |
-| `PUT` | `/api/tarefas/{id}` | Atualiza | `200` / `404` |
-| `PATCH` | `/api/tarefas/{id}/concluir` | Marca como concluída | `200` / `404` |
-| `DELETE` | `/api/tarefas/{id}` | Remove | `204` / `404` |
+6 rotas, todas em `TarefaController`.
 
-Erros seguem o padrão **RFC 7807 (ProblemDetail)**. Validação retorna `400` com o mapa
-`erros` campo → mensagem.
+| Método | Rota | Resposta |
+| --- | --- | --- |
+| `POST` | `/api/tarefas` | 201 + `Location`, 400 |
+| `GET` | `/api/tarefas?status=&page=&size=&sort=` | 200 (página), 400 para `sort` inválido |
+| `GET` | `/api/tarefas/{id}` | 200, 404 |
+| `PUT` | `/api/tarefas/{id}` | 200, 400, 404 |
+| `PATCH` | `/api/tarefas/{id}/concluir` | 200, 404 |
+| `DELETE` | `/api/tarefas/{id}` | 204, 404 |
 
-### Modelo
+Além delas, `GET /actuator/health` responde com o estado do banco.
 
-```jsonc
+Corpo de entrada:
+
+```json
 {
-  "titulo": "string (3–120, obrigatório)",
-  "descricao": "string (até 500, opcional)",
-  "status": "PENDENTE | EM_ANDAMENTO | CONCLUIDA",
+  "titulo": "obrigatório, 3 a 120 caracteres",
+  "descricao": "opcional, até 500",
+  "status": "PENDENTE | EM_ANDAMENTO | CONCLUIDA (ignorado na criação)",
   "prioridade": "BAIXA | MEDIA | ALTA",
   "prazo": "2026-08-01"
 }
 ```
 
-## Exemplos (curl)
+## Testes
 
 ```bash
-# criar
-curl -i -X POST http://localhost:8080/api/tarefas \
-  -H "Content-Type: application/json" \
-  -d '{"titulo":"Estudar JPA","prioridade":"ALTA","prazo":"2026-08-10"}'
-
-# listar só pendentes, 5 por página
-curl "http://localhost:8080/api/tarefas?status=PENDENTE&size=5"
-
-# concluir
-curl -X PATCH http://localhost:8080/api/tarefas/1/concluir
-
-# health
-curl http://localhost:8080/actuator/health
+./mvnw verify
 ```
 
-Veja também [`api.http`](api.http) para rodar direto no VS Code / IntelliJ.
+8 testes, todos de integração com `@SpringBootTest` e MockMvc sobre H2:
 
-## PostgreSQL (opcional)
+- `TarefaApiIntegrationTest` (6): criação com 201 e `Location`, validação 400, 404, concluir, `sort` inválido, `atualizadaEm` depois do PATCH.
+- `MigracaoFlywayTest` (1): aplica as migrations num H2 em modo PostgreSQL e sobe o contexto com `ddl-auto=validate`. Se alguém criar um campo na entidade e esquecer a migration, o CI quebra aqui.
+- `GestorTarefasApiApplicationTests` (1): o contexto sobe.
 
-O `data.sql` de exemplo roda só em banco embutido (H2); em PostgreSQL o Spring pula o
-seed automaticamente (`spring.sql.init.mode=embedded` por padrão). Apontar a API para
-um Postgres é só definir variáveis de ambiente:
+Não há teste unitário isolado nem medição de cobertura. O CI (`.github/workflows/ci.yml`) roda `./mvnw -B verify` em todo push e PR.
 
-```bash
-docker compose up -d db
-DB_URL=jdbc:postgresql://localhost:5432/tarefas \
-DB_USER=tarefas DB_PASSWORD=tarefas \
-./mvnw spring-boot:run
-```
+## O que ficou de fora
 
-## Docker
+- Autenticação. Qualquer pessoa altera qualquer tarefa. O terceiro projeto da trilha (e-commerce) trata disso com JWT.
+- `PUT` é substituição completa: campo omitido vira `null` (o `prazo`, por exemplo). Um `PATCH` parcial seria mais amigável.
+- O teste de migração roda em H2 no modo PostgreSQL, não num Postgres real. Testcontainers fecharia essa diferença.
+- `/actuator/health` mostra detalhes (caminho de disco, banco) para qualquer um. Em produção seria `when-authorized`.
+- A resposta de lista serializa o `PageImpl` inteiro, com campos internos do Spring Data. Um DTO de página próprio deixaria o contrato estável.
 
-```bash
-docker build -t gestor-tarefas-api .
-docker run -p 8080:8080 gestor-tarefas-api        # roda em H2
-docker compose up                                  # sobe API + PostgreSQL
-```
+## Aprendizados
 
-## Estrutura
+- `@PreUpdate` não roda quando você chama `save()` numa entidade já gerenciada; roda no flush. A resposta do PATCH mostrava a data velha, e só um teste comparando as duas datas pegou isso.
+- Com Flyway, `spring.jpa.defer-datasource-initialization=true` faz o Hibernate validar o schema antes da migration rodar ("missing table"). No perfil `postgres` ele fica `false`.
 
-```
-src/main/java/dev/guilherme/tarefas
-├── domain/        # entidade Tarefa + enums (Status, Prioridade)
-├── repository/    # Spring Data JPA
-├── dto/           # TarefaRequest / TarefaResponse (records)
-├── service/       # regras de negócio (transações)
-├── web/           # controller REST + tratamento global de erros
-└── exception/     # exceções de domínio
-```
+## Licença
 
-## Próximos passos (trilha)
-
-- Mês 3: Docker Compose com PostgreSQL + ampliar cobertura de testes (JUnit) — já preparado.
-- Mês 4: autenticação JWT, upload de arquivos, paginação avançada e documentação Swagger/OpenAPI.
+MIT, veja [LICENSE](LICENSE).

@@ -1,7 +1,6 @@
 # Manual completo — API de Gestão de Tarefas
 
-> Manual minucioso deste projeto. Se ainda não leu, comece pelos
-> **[Fundamentos](../MANUAIS/01-FUNDAMENTOS-SPRING-BOOT.md)** — aqui não repito os
+> Manual minucioso deste projeto, escrito como material de estudo. Não repito aqui os
 > conceitos gerais (camadas, JPA, DTO, validação, ProblemDetail).
 
 Projeto: **API REST para gerenciar tarefas** (criar, listar, concluir, apagar). É o mais
@@ -221,7 +220,9 @@ código roda com H2 em dev e PostgreSQL em produção — só mudando a variáve
 
 **Adicionar um campo (ex.: `responsavel`):** (1) campo + getter em `Tarefa`; (2) no
 `TarefaRequest`; (3) no `TarefaResponse` e no `de(...)`; (4) passar no `service.criar`.
-Rode `./mvnw test`. Com `ddl-auto=update` a coluna aparece sozinha.
+Rode `./mvnw test`. No H2 de dev, o `ddl-auto=update` cria a coluna sozinho. No perfil
+`postgres` o schema vem do Flyway: crie `src/main/resources/db/migration/V2__...sql` com o
+`alter table`. O `MigracaoFlywayTest` quebra se a entidade e as migrations divergirem.
 
 **Adicionar um endpoint (ex.: reabrir):** (1) `reabrir()` na `Tarefa`; (2) método no
 service; (3) `@PatchMapping("/{id}/reabrir")` no controller.
@@ -241,8 +242,8 @@ mockMvc.perform(post("/api/tarefas").content("{ \"titulo\": \"ab\" }"))
        .andExpect(jsonPath("$.erros.titulo").exists());
 ```
 
-São 4 testes de fluxo + 1 de "a app sobe". `./mvnw test` deve terminar com
-`Tests run: 5 … BUILD SUCCESS`.
+São 6 testes de fluxo, 1 de "a app sobe" e 1 que aplica as migrations do Flyway e valida
+as entidades contra elas. `./mvnw test` deve terminar com `Tests run: 8 … BUILD SUCCESS`.
 
 ---
 
@@ -255,4 +256,4 @@ São 4 testes de fluxo + 1 de "a app sobe". `./mvnw test` deve terminar com
 | `./mvnw: Permission denied` | wrapper sem permissão | `chmod +x mvnw` |
 | Campo novo não aparece | H2 reiniciou | Reinicie a API (H2 em memória recria) |
 
-Próximo: **[Controle Financeiro](../controle-financeiro-api/MANUAL.md)** (Mês 3).
+Próximo projeto da trilha: Controle Financeiro (Mês 3).
