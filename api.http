@@ -1,0 +1,44 @@
+### Criar tarefa
+POST http://localhost:8080/api/tarefas
+Content-Type: application/json
+
+{
+  "titulo": "Estudar Spring Data JPA",
+  "descricao": "Repositórios, paginação e queries derivadas",
+  "prioridade": "ALTA",
+  "prazo": "2026-08-15"
+}
+
+### Listar (paginado)
+GET http://localhost:8080/api/tarefas?page=0&size=10&sort=prazo,asc
+
+### Listar só pendentes
+GET http://localhost:8080/api/tarefas?status=PENDENTE
+
+### Buscar por id
+GET http://localhost:8080/api/tarefas/1
+
+### Atualizar
+PUT http://localhost:8080/api/tarefas/1
+Content-Type: application/json
+
+{
+  "titulo": "Estudar Spring Data JPA (revisado)",
+  "status": "EM_ANDAMENTO",
+  "prioridade": "MEDIA"
+}
+
+### Concluir
+PATCH http://localhost:8080/api/tarefas/1/concluir
+
+### Remover
+DELETE http://localhost:8080/api/tarefas/1
+
+### Validação falha (título curto) -> 400 ProblemDetail
+POST http://localhost:8080/api/tarefas
+Content-Type: application/json
+
+{ "titulo": "ab" }
+
+### Health
+GET http://localhost:8080/actuator/health
