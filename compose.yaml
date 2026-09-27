@@ -19,6 +19,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: postgres
       DB_URL: jdbc:postgresql://db:5432/tarefas
       DB_USER: tarefas
       DB_PASSWORD: tarefas
