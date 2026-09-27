@@ -45,14 +45,15 @@ public class TarefaService {
         Tarefa tarefa = buscarEntidade(id);
         tarefa.atualizar(request.titulo(), request.descricao(), request.status(),
                 request.prioridade(), request.prazo());
-        return TarefaResponse.de(repository.save(tarefa));
+        // flush dispara o @PreUpdate agora; sem ele a resposta sairia com o atualizadaEm antigo
+        return TarefaResponse.de(repository.saveAndFlush(tarefa));
     }
 
     @Transactional
     public TarefaResponse concluir(Long id) {
         Tarefa tarefa = buscarEntidade(id);
         tarefa.concluir();
-        return TarefaResponse.de(repository.save(tarefa));
+        return TarefaResponse.de(repository.saveAndFlush(tarefa));
     }
 
     @Transactional

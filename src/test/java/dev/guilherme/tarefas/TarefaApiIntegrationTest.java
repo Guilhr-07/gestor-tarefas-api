@@ -1,5 +1,6 @@
 package dev.guilherme.tarefas;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -8,7 +9,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import java.net.URI;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -73,5 +76,30 @@ class TarefaApiIntegrationTest {
         mockMvc.perform(patch(location.getPath() + "/concluir"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("CONCLUIDA")));
+    }
+
+    @Test
+    void ordenacaoPorCampoInexistenteRetorna400() throws Exception {
+        mockMvc.perform(get("/api/tarefas").param("sort", "naoExiste"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title", is("Parâmetro inválido")));
+    }
+
+    @Test
+    void concluirDevolveAtualizadaEmDaAlteracao() throws Exception {
+        MvcResult criada = mockMvc.perform(post("/api/tarefas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"titulo\": \"Tarefa com data\" }"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        URI location = URI.create(criada.getResponse().getHeader("Location"));
+
+        String corpo = mockMvc.perform(patch(location.getPath() + "/concluir"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Instant criadaEm = Instant.parse(JsonPath.read(corpo, "$.criadaEm"));
+        Instant atualizadaEm = Instant.parse(JsonPath.read(corpo, "$.atualizadaEm"));
+        assertThat(atualizadaEm).isAfter(criadaEm);
     }
 }
