@@ -1,17 +1,19 @@
 # Gestor de Tarefas API
 
+[![CI](https://github.com/Guilhr-07/gestor-tarefas-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Guilhr-07/gestor-tarefas-api/actions/workflows/ci.yml) | Case completo, com as decisões e o que ficou de fora: [guilherme-portfolio.dev/projetos/gestor-tarefas-api](https://guilherme-portfolio.dev/projetos/gestor-tarefas-api)
+
 API REST para criar, listar, concluir e apagar tarefas, com filtro por status e paginação. Feita em Java 21 e Spring Boot 4.1.
 
 ## Por que existe
 
-É o primeiro dos três projetos da minha trilha de backend (Mês 2). O domínio é pequeno de propósito: uma entidade, dois enums. Assim sobra atenção para o que costuma ficar mal feito em projeto de estudo: contrato HTTP certo (201 com `Location`, 204, 404), erro em formato padrão, validação no servidor, teste de integração e schema versionado.
+É o primeiro dos três projetos da minha trilha de backend. O domínio é pequeno de propósito: uma entidade, dois enums. Assim sobra atenção para o que costuma ficar mal feito em projeto de estudo: contrato HTTP certo (201 com `Location`, 204, 404), erro em formato padrão, validação no servidor, teste de integração e schema versionado.
 
 ## Como funciona
 
 1. O cliente cria uma tarefa com `POST /api/tarefas`. Ela nasce `PENDENTE`, e com prioridade `MEDIA` se nada for informado.
 2. Lista com `GET /api/tarefas?status=PENDENTE&page=0&size=20&sort=prazo,asc`.
 3. Conclui com `PATCH /api/tarefas/{id}/concluir`. Concluir de novo não muda nada.
-4. Qualquer erro volta como `ProblemDetail` (RFC 9457): 400 com o mapa `erros` campo por campo, 404 com a mensagem.
+4. Qualquer erro volta como `ProblemDetail` (RFC 9457, que substituiu a 7807): 400 com o mapa `erros` campo por campo, 404 com a mensagem.
 
 ## Arquitetura
 
