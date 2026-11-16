@@ -1,10 +1,10 @@
-# Manual completo — API de Gestão de Tarefas
+# Manual completo: API de Gestão de Tarefas
 
 > Manual minucioso deste projeto, escrito como material de estudo. Não repito aqui os
 > conceitos gerais (camadas, JPA, DTO, validação, ProblemDetail).
 
 Projeto: **API REST para gerenciar tarefas** (criar, listar, concluir, apagar). É o mais
-simples dos três — o lugar certo para entender a arquitetura antes dos outros.
+simples dos três, o lugar certo para entender a arquitetura antes dos outros.
 
 ---
 
@@ -52,23 +52,23 @@ gestor-tarefas-api/
     └── exception/  RecursoNaoEncontradoException
 ```
 
-Fluxo de um pedido: `web` → `service` → `repository` → banco. Volta pelo mesmo caminho.
+Fluxo de um pedido: `web`, depois `service`, depois `repository`, depois o banco. Volta pelo mesmo caminho.
 
 ---
 
 ## 3. Passeio pelo código, arquivo por arquivo
 
-### 3.1. `domain/StatusTarefa.java` e `Prioridade.java` — enums
+### 3.1. `domain/StatusTarefa.java` e `Prioridade.java`: enums
 
 ```java
 public enum StatusTarefa { PENDENTE, EM_ANDAMENTO, CONCLUIDA }
 public enum Prioridade   { BAIXA, MEDIA, ALTA }
 ```
 
-Um **enum** é uma lista fechada de valores. A tarefa só pode ter um desses status — nada
+Um **enum** é uma lista fechada de valores. A tarefa só pode ter um desses status, nada
 de texto solto digitado errado.
 
-### 3.2. `domain/Tarefa.java` — a entidade (a tabela)
+### 3.2. `domain/Tarefa.java`: a entidade (a tabela)
 
 ```java
 @Entity @Table(name = "tarefas")
@@ -83,9 +83,9 @@ public class Tarefa {
 }
 ```
 
-- `@Entity`+`@Table` → tabela `tarefas`. `@Id`+`@GeneratedValue(IDENTITY)` → o banco gera o número.
-- `@Enumerated(EnumType.STRING)` grava o **nome** (`"PENDENTE"`), não o número da posição —
-  se você reordenar o enum um dia, os dados antigos continuam certos. **Sempre use STRING.**
+- `@Entity`+`@Table`: tabela `tarefas`. `@Id`+`@GeneratedValue(IDENTITY)`: o banco gera o número.
+- `@Enumerated(EnumType.STRING)` grava o **nome** (`"PENDENTE"`), não o número da posição.
+  Se você reordenar o enum um dia, os dados antigos continuam certos. **Sempre use STRING.**
 
 Datas preenchidas sozinhas por callbacks de ciclo de vida:
 
@@ -100,7 +100,7 @@ A **regra de negócio mora na entidade** ("modelo rico"), não no controller:
 public void concluir() { this.status = StatusTarefa.CONCLUIDA; }
 ```
 
-O `protected Tarefa()` vazio existe só porque o JPA exige — você não o usa.
+O `protected Tarefa()` vazio existe só porque o JPA exige. Você não o usa.
 
 ### 3.3. `repository/TarefaRepository.java`
 
@@ -114,7 +114,7 @@ Só uma **interface**. Estendendo `JpaRepository` você já ganha `save/findById
 deleteById/existsById`. O `findByStatus` o Spring traduz para `WHERE status = ?` pelo
 **nome do método**. `Pageable` dá paginação de graça.
 
-### 3.4. `dto/TarefaRequest.java` — entrada validada
+### 3.4. `dto/TarefaRequest.java`: entrada validada
 
 ```java
 public record TarefaRequest(
@@ -123,14 +123,14 @@ public record TarefaRequest(
     StatusTarefa status, Prioridade prioridade, LocalDate prazo) { }
 ```
 
-`record` = classe curta só de dados. As anotações são as **regras**: título vazio/curto →
+`record` = classe curta só de dados. As anotações são as **regras**: com título vazio ou curto,
 o pedido morre com 400 antes de chegar na regra.
 
 ### 3.5. `dto/TarefaResponse.java`
 
 Espelha a Tarefa para o cliente, com atalho de conversão `TarefaResponse.de(tarefa)`.
 
-### 3.6. `service/TarefaService.java` — a regra
+### 3.6. `service/TarefaService.java`: a regra
 
 ```java
 @Service
@@ -152,9 +152,9 @@ public class TarefaService {
 ```
 
 `@Transactional` = a operação acontece por inteiro ou não acontece. O `buscarEntidade` é
-reaproveitado por buscar/atualizar/concluir — **um lugar só** decide o "não encontrado".
+reaproveitado por buscar/atualizar/concluir: **um lugar só** decide o "não encontrado".
 
-### 3.7. `web/TarefaController.java` — as rotas
+### 3.7. `web/TarefaController.java`: as rotas
 
 ```java
 @RestController @RequestMapping("/api/tarefas")
@@ -183,10 +183,10 @@ public class TarefaController {
 ```
 
 - `@RequestBody` converte o JSON em objeto; `@Valid` dispara as regras.
-- `ResponseEntity.created(location)` → 201 + cabeçalho `Location` apontando pra nova tarefa.
-- `@PathVariable` pega o número da URL (`/api/tarefas/5` → `id = 5`).
+- `ResponseEntity.created(location)`: 201 + cabeçalho `Location` apontando pra nova tarefa.
+- `@PathVariable` pega o número da URL (`/api/tarefas/5` vira `id = 5`).
 
-### 3.8. `web/GlobalExceptionHandler.java` — erros centralizados
+### 3.8. `web/GlobalExceptionHandler.java`: erros centralizados
 
 ```java
 @RestControllerAdvice
@@ -200,7 +200,7 @@ public class GlobalExceptionHandler {
 }
 ```
 
-Exceção lançada em qualquer lugar → cai aqui → vira a resposta certa. O controller fica
+Exceção lançada em qualquer lugar cai aqui e vira a resposta certa. O controller fica
 limpo, sem `try/catch`.
 
 ### 3.9. `application.properties`
@@ -212,7 +212,7 @@ management.endpoints.web.exposure.include=health,info
 ```
 
 `${DB_URL:...}` = "use a variável `DB_URL`; se não existir, use H2". É assim que o mesmo
-código roda com H2 em dev e PostgreSQL em produção — só mudando a variável de ambiente.
+código roda com H2 em dev e PostgreSQL em produção, só mudando a variável de ambiente.
 
 ---
 
@@ -243,7 +243,7 @@ mockMvc.perform(post("/api/tarefas").content("{ \"titulo\": \"ab\" }"))
 ```
 
 São 6 testes de fluxo, 1 de "a app sobe" e 1 que aplica as migrations do Flyway e valida
-as entidades contra elas. `./mvnw test` deve terminar com `Tests run: 8 … BUILD SUCCESS`.
+as entidades contra elas. `./mvnw test` deve terminar com `Tests run: 8 ... BUILD SUCCESS`.
 
 ---
 
